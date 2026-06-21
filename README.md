@@ -1,63 +1,11 @@
-# QuickQuery
-
 自分用・非汎用
 
 ## インストール
 `uv add quickquery`  
 
-※ `open_patchright` を使うとき：Google ChromeをPCにインストールしておく。  
-※ `open_camoufox` を使うとき：`uv run camoufox fetch`  
+`open_patchright` を使うとき：Google ChromeをPCにインストールしておく。  
+`open_camoufox` を使うとき：`uv run camoufox fetch`  
 
-## 実装機能
-
-### quickquery
-
-- `quick_page(page: Page) -> QuickPage`
-- `quick_element(page: Page, elem: ElementHandle | None) -> QuickElement`
-- `quick_element_group(page: Page, elems: list[QuickElement]) -> QuickElementGroup`
-- `quick_frame(page: Page, frame: Frame | None) -> QuickFrame`
-- `quick_shadow_root(page: Page, host: ElementHandle | None) -> QuickShadowRoot`
-- `quick_parser(parser: LexborHTMLParser) -> QuickParser`
-- `quick_node(node: LexborNode | None) -> QuickNode`
-- `quick_node_group(nodes: list[QuickNode]) -> QuickNodeGroup`
-- `QuickPage`
-- `QuickElement`
-- `QuickElementGroup`
-- `ElementScan`
-- `QuickFrame`
-- `QuickShadowRoot`
-- `QuickParser`
-- `QuickNode`
-- `QuickNodeGroup`
-- `NodeScan`
-
-### quickquery.utils
-
-- `parse_html(path: Path) -> LexborHTMLParser | None`
-- `meta_html(meta: Mapping[str, object | None]) -> str`
-- `from_here(file: str) -> Callable[[str], Path]`
-- `append_csv(path: Path, row: dict) -> None`
-- `write_csv(path: Path, rows: list[dict]) -> None`
-- `write_parquet(path: Path, rows: list[dict]) -> None`
-- `hash_name(key: str) -> str`
-- `write_text(path: Path, data: str) -> bool`
-- `write_bytes(path: Path, data: bytes) -> bool`
-- `save_log(path: Path, level: str = 'WARNING') -> None`
-- `process_map[T, R](worker: Callable[[T], R], items: Iterable[T], workers: int | None = None, *, chunksize: int | None = None) -> list[R | None]`
-- `glob_paths(dir_path: Path, pattern: str = '*.html') -> list[str]`
-- `counter(start: int = 1) -> Iterator[int]`
-
-### quickquery.live
-
-- `RecycleEvery`
-- `PatchrightSession`
-- `CamoufoxSession`
-- `open_patchright(*, browser_options: dict | None = None, context_options: dict | None = None, recycle: RecycleEvery | None = None) -> PatchrightSession`
-- `open_camoufox(*, browser_options: dict | None = None, context_options: dict | None = None, recycle: RecycleEvery | None = None) -> CamoufoxSession`
-- `PatchrightSession.page() -> Page`
-- `CamoufoxSession.page() -> Page`
-
-`browser_options` / `context_options` は Playwright へ渡す起動オプション。`recycle` は quickquery の再生成間隔（`page()` 呼び出し回数ごとに独立して効く。省略時は再生成しない）。`page()` を呼ぶたびに内部カウントが 1 進む。
 
 ## 使用例
 
@@ -148,8 +96,10 @@ with open_patchright(
             append_csv(here('csv/failed.csv'), {
                 'url_index': url_index,
                 'request_url': request_url,
+                'final_url': page.url,
                 'reason': 'write_text',
             })
+            continue
 
         page.screenshot(path=here(f'media/{url_index}-full-page.png'), full_page=True)
 
@@ -183,7 +133,7 @@ def main():
     write_parquet(here('parquet/extract.parquet'), results)
 
 def extract(file_path: str) -> dict | None:
-    if not (parser := parse_html(Path(file_path))):
+    if not (parser := parse_html(Path(file_path).read_bytes())):
         return None
     p = quick_parser(parser)
     dt_scan = p.ii('dt').scan

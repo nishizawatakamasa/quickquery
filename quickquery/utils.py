@@ -16,11 +16,11 @@ def _ensure_parent(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
 
-def parse_html(path: Path) -> LexborHTMLParser | None:
+def parse_html(html: str | bytes) -> LexborHTMLParser | None:
     try:
-        return LexborHTMLParser(path.read_bytes())
+        return LexborHTMLParser(html)
     except Exception as e:
-        logger.error(f'[parse_html] {path} {type(e).__name__}: {e}')
+        logger.error(f'[parse_html] {type(e).__name__}: {e}')
         return None
 
 
