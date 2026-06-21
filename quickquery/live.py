@@ -36,8 +36,8 @@ class _SessionBase:
         recycle: RecycleEvery | None = None,
     ) -> None:
         self._recycle = recycle or RecycleEvery()
-        self._browser_options = dict(browser_options or {})
-        self._context_options = dict(context_options or {})
+        self._browser_options = browser_options or {}
+        self._context_options = context_options or {}
         self._browser = None
         self._context = None
         self._page: Page | None = None
@@ -47,7 +47,7 @@ class _SessionBase:
     def page(self) -> Page:
         if not self._entered:
             raise RuntimeError('with ブロックの外で page() を呼べません')
-        if self._page is None:
+        if self._browser is None:
             self._open_browser()
         elif (b := self._recycle.browser) and self._page_calls % b == 0:
             self._close_browser()
@@ -67,7 +67,7 @@ class _SessionBase:
     def _close_page(self) -> None:
         if self._page is not None:
             self._page.close()
-            self._page = None
+        self._page = None
 
     def _open_context(self) -> None:
         self._context = self._browser.new_context(**self._context_options)
@@ -77,7 +77,7 @@ class _SessionBase:
         self._close_page()
         if self._context is not None:
             self._context.close()
-            self._context = None
+        self._context = None
 
 
 class PatchrightSession(_SessionBase):
@@ -111,8 +111,8 @@ class PatchrightSession(_SessionBase):
         self._close_browser()
         self._pw.stop()
         self._pw = None
-        self._entered = False
         self._page_calls = 0
+        self._entered = False
 
     def _open_browser(self) -> None:
         self._browser = self._pw.chromium.launch(**self._browser_options)
@@ -153,19 +153,20 @@ class CamoufoxSession(_SessionBase):
         if not self._entered:
             return
         self._close_browser()
-        self._entered = False
         self._page_calls = 0
+        self._entered = False
 
     def _open_browser(self) -> None:
+        fox = Camoufox(**self._browser_options)
         self._stack = ExitStack()
-        self._browser = self._stack.enter_context(Camoufox(**self._browser_options))
+        self._browser = self._stack.enter_context(fox)
         self._open_context()
 
     def _close_browser(self) -> None:
         self._close_context()
         if self._stack is not None:
             self._stack.close()
-            self._stack = None
+        self._stack = None
         self._browser = None
 
 
