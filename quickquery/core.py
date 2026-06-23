@@ -20,6 +20,8 @@ ElementHandle = PatchElementHandle | PlayElementHandle
 Response = PatchResponse | PlayResponse
 Frame = PatchFrame | PlayFrame
 
+WaitState = Literal['attached', 'detached', 'visible', 'hidden']
+
 _UNUSABLE_INLINE_URL = re.compile(r'(?i)^(?:#|javascript:|mailto:|tel:|data:)')
 
 _ELEMENT_NEXT = 'nextElementSibling'
@@ -146,7 +148,7 @@ class QuickPage(_PageScoped):
         finally:
             new_page.close()
 
-    def w(self, selector: str, state: str = 'attached', timeout: int = 15000) -> QuickElement:
+    def w(self, selector: str, state: WaitState = 'attached', timeout: int = 15000) -> QuickElement:
         '''wait'''
         try:
             elem = self._page.wait_for_selector(selector, state=state, timeout=timeout)
@@ -453,7 +455,7 @@ class QuickFrame(_PageScoped):
         elems = self._frame.query_selector_all(selector)
         return self.quick_element_group([self.quick_element(e) for e in elems])
 
-    def w(self, selector: str, state: str = 'attached', timeout: int = 15000) -> QuickElement:
+    def w(self, selector: str, state: WaitState = 'attached', timeout: int = 15000) -> QuickElement:
         '''wait'''
         if self._frame is None:
             return self.quick_element(None)
@@ -558,6 +560,9 @@ class QuickParser:
         '''in all'''
         nodes = self._parser.css(selector)
         return quick_node_group([quick_node(n) for n in nodes])
+
+    def meta(self, name: str) -> str | None:
+        return self.i(f'meta[name="{name}"]').attr('content')
 
 
 class QuickNode:

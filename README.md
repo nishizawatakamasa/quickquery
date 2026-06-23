@@ -13,9 +13,11 @@
 ```python
 from urllib.parse import urlencode
 
+from loguru import logger
+
 from quickquery import quick_page
 from quickquery.live import RecycleEvery, open_patchright
-from quickquery.utils import save_log, from_here, counter, write_csv
+from quickquery.utils import save_log, from_here, write_csv
 
 here = from_here(__file__)
 save_log(here('log/crawling.log'))
@@ -34,7 +36,7 @@ with open_patchright(
     urls = []
     for i, prefecture_url in enumerate(prefecture_urls):
         print(f'prefecture_url {i}/{n - 1}')
-        for page_num in counter():
+        for page_num in range(1, 501):
             page = s.page()
             p = quick_page(page)
             if not p.goto(f'{prefecture_url}?{urlencode({"page": page_num})}', sleep_after=(0.5, 1)):
@@ -42,6 +44,8 @@ with open_patchright(
             if not (bukken_elems := p.ii('ul li div a[href^="https://home.katitas.jp"]:has(p)')):
                 break
             urls.extend(bukken_elems.urls)
+        else:
+            logger.warning(f'page limit reached: {prefecture_url!r}')
 write_csv(here('csv/urls.csv'), [{'url': url} for url in urls])
 ```
 
@@ -139,10 +143,10 @@ def extract(file_path: str) -> dict | None:
     dt_scan = p.ii('dt').scan
     dd_text = lambda pattern: dt_scan.m(pattern).n('dd').text
     return {
-        'url_index': p.i('meta[name="quickquery:url_index"]').attr('content'),
-        'saved_at': p.i('meta[name="quickquery:saved_at"]').attr('content'),
-        'request_url': p.i('meta[name="quickquery:request_url"]').attr('content'),
-        'final_url': p.i('meta[name="quickquery:final_url"]').attr('content'),
+        'url_index': p.meta('quickquery:url_index'),
+        'saved_at': p.meta('quickquery:saved_at'),
+        'request_url': p.meta('quickquery:request_url'),
+        'final_url': p.meta('quickquery:final_url'),
         'ファイル名': Path(file_path).name,
 
         '取り扱い店舗': p.ii('p').scan.m(r'取り扱い店舗').n('p').text,
