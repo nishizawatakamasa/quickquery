@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from contextlib import ExitStack
 from dataclasses import dataclass, fields
 from types import TracebackType
@@ -5,13 +6,16 @@ from typing import Any, Self
 
 from camoufox.sync_api import Camoufox
 from patchright.sync_api import (
+    BrowserContext as PatchrightBrowserContext,
     Page as PatchrightPage,
     Playwright,
     sync_playwright,
 )
+from playwright.sync_api import BrowserContext as PlaywrightBrowserContext
 from playwright.sync_api import Page as PlaywrightPage
 
 Page = PatchrightPage | PlaywrightPage
+Context = PatchrightBrowserContext | PlaywrightBrowserContext
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,12 +38,14 @@ class _SessionBase:
         browser_options: dict[str, Any] | None = None,
         context_options: dict[str, Any] | None = None,
         recycle: RecycleEvery | None = None,
+        setup_context: Callable[[Context], None] | None = None,
     ) -> None:
         self._recycle = recycle or RecycleEvery()
         self._browser_options = browser_options or {}
         self._context_options = context_options or {}
+        self._setup_context = setup_context
         self._browser = None
-        self._context = None
+        self._context: Context | None = None
         self._page: Page | None = None
         self._page_calls = 0
         self._entered = False
@@ -71,6 +77,8 @@ class _SessionBase:
 
     def _open_context(self) -> None:
         self._context = self._browser.new_context(**self._context_options)
+        if self._setup_context is not None:
+            self._setup_context(self._context)
         self._open_page()
 
     def _close_context(self) -> None:
@@ -87,11 +95,13 @@ class PatchrightSession(_SessionBase):
         browser_options: dict[str, Any] | None = None,
         context_options: dict[str, Any] | None = None,
         recycle: RecycleEvery | None = None,
+        setup_context: Callable[[Context], None] | None = None,
     ) -> None:
         super().__init__(
             browser_options=browser_options,
             context_options=context_options,
             recycle=recycle,
+            setup_context=setup_context,
         )
         self._pw: Playwright | None = None
 
@@ -132,11 +142,13 @@ class CamoufoxSession(_SessionBase):
         browser_options: dict[str, Any] | None = None,
         context_options: dict[str, Any] | None = None,
         recycle: RecycleEvery | None = None,
+        setup_context: Callable[[Context], None] | None = None,
     ) -> None:
         super().__init__(
             browser_options=browser_options,
             context_options=context_options,
             recycle=recycle,
+            setup_context=setup_context,
         )
         self._stack: ExitStack | None = None
 
@@ -175,11 +187,13 @@ def open_patchright(
     browser_options: dict[str, Any] | None = None,
     context_options: dict[str, Any] | None = None,
     recycle: RecycleEvery | None = None,
+    setup_context: Callable[[Context], None] | None = None,
 ) -> PatchrightSession:
     return PatchrightSession(
         browser_options=browser_options,
         context_options=context_options,
         recycle=recycle,
+        setup_context=setup_context,
     )
 
 
@@ -188,9 +202,11 @@ def open_camoufox(
     browser_options: dict[str, Any] | None = None,
     context_options: dict[str, Any] | None = None,
     recycle: RecycleEvery | None = None,
+    setup_context: Callable[[Context], None] | None = None,
 ) -> CamoufoxSession:
     return CamoufoxSession(
         browser_options=browser_options,
         context_options=context_options,
         recycle=recycle,
+        setup_context=setup_context,
     )

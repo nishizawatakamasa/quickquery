@@ -1,15 +1,16 @@
 自分用・非汎用
 
 ## インストール
-`uv add quickquery`  
+
+`uv add quickquery`
 
 `open_patchright` を使うとき：Google ChromeをPCにインストールしておく。  
-`open_camoufox` を使うとき：`uv run camoufox fetch`  
-
+`open_camoufox` を使うとき：`uv run camoufox fetch`
 
 ## 使用例
 
 ### crawl.py
+
 ```python
 from urllib.parse import urlencode
 
@@ -50,6 +51,7 @@ write_csv(here('csv/urls.csv'), [{'url': url} for url in urls])
 ```
 
 ### scrape.py
+
 ```python
 from datetime import datetime, timezone
 import time
@@ -83,7 +85,7 @@ with open_patchright(
         print(f'url_index {url_index}/{n - 1}')
         page = s.page()
         p = quick_page(page)
-        if not p.goto(request_url):
+        if not (response := p.goto(request_url)):
             append_csv(here('csv/failed.csv'), {
                 'url_index': url_index,
                 'request_url': request_url,
@@ -95,6 +97,7 @@ with open_patchright(
             'quickquery:saved_at': datetime.now(timezone.utc),
             'quickquery:request_url': request_url,
             'quickquery:final_url': page.url,
+            'quickquery:goto_status': response.status,
         }) + page.content()
         if not write_text(here('html') / f'{hash_name(page.url)}.html', html):
             append_csv(here('csv/failed.csv'), {
@@ -124,6 +127,7 @@ with open_patchright(
 ```
 
 ### extract.py
+
 ```python
 from pathlib import Path
 
@@ -147,16 +151,17 @@ def extract(file_path: str) -> dict | None:
         'saved_at': p.meta('quickquery:saved_at'),
         'request_url': p.meta('quickquery:request_url'),
         'final_url': p.meta('quickquery:final_url'),
+        'goto_status': p.meta('quickquery:goto_status'),
         'ファイル名': Path(file_path).name,
 
         '取り扱い店舗': p.ii('p').scan.m(r'取り扱い店舗').n('p').text,
-        
+
         '価格': dd_text(r'価格'),
         '月々の支払い': dd_text(r'月々の支払い'),
         '間取': dd_text(r'間取'),
         '土地面積': dd_text(r'土地面積'),
         '建物面積': dd_text(r'建物面積'),
-        
+
         '所在地': dd_text(r'所在地'),
         '交通': dd_text(r'交通'),
         '接道状況': dd_text(r'接道状況'),
@@ -182,10 +187,10 @@ def extract(file_path: str) -> dict | None:
         '物件番号': dd_text(r'物件番号'),
         '情報更新日': dd_text(r'情報更新日'),
         '次回更新予定日': dd_text(r'次回更新予定日'),
-        
+
         'スタッフからのコメント': p.ii('div').scan.m(r'スタッフからのコメント').n('div').text,
         '物件の魅力': p.ii('p').scan.m(r'物件の魅力').n('p').text,
-        
+
         'img_desc': '\n'.join(p.ii('p.text-left').scan.m(r'画像をクリックすると拡大画像がご覧に').n('ul').ii('li').texts)
     }
 
@@ -194,22 +199,26 @@ if __name__ == '__main__':
 ```
 
 ### clean.ipynb
+
 ```python
 import re
 
 import pandas as pd
 ```
+
 ```python
 df_shikutyoson = pd.read_csv('./shikutyoson.csv')
 cities = df_shikutyoson["市区町村"].dropna().sort_values(key=lambda x: x.str.len(), ascending=False)
 shikutyoson_pattern = "|".join(cities.map(lambda x: re.escape(x)))
 ```
+
 ```python
 df_raw = pd.read_parquet('parquet/extract.parquet')
 df_raw = df_raw.apply(lambda x: x.fillna('').str.normalize('NFKC').str.strip())
 ```
+
 ```python
-df = df_raw.sort_values('saved_at')[['url_index', 'saved_at', 'request_url', 'final_url']].copy()
+df = df_raw.sort_values('saved_at')[['url_index', 'saved_at', 'request_url', 'final_url', 'goto_status']].copy()
 
 df['事例種別'] = df_raw['物件種別'].str.contains(r'中古|土地').map({True: '中古売出'})
 df['総額'] = (
@@ -240,16 +249,16 @@ df['成約年月'] = df_raw['現況'].map({'空': '販売中', '古家付': '販
 df['私道負担'] = df_raw['私道面積']
 df['接道'] = df_raw['接道状況']
 
-s1 = df_raw['最寄りの学校'].str.extract(r'([^/\s【】・、(]+?小学校)', expand=False) 
+s1 = df_raw['最寄りの学校'].str.extract(r'([^/\s【】・、(]+?小学校)', expand=False)
 s2 = df_raw['物件の魅力'].str.extract(r'([^/\s【】・、(]+?小学校)', expand=False)
 s3 = df_raw['備考'].str.extract(r'([^/\s【】・、(]+?小学校)', expand=False)
-s4 = df_raw['img_desc'].str.extract(r'([^/\s【】・、(]+?小学校)', expand=False) 
+s4 = df_raw['img_desc'].str.extract(r'([^/\s【】・、(]+?小学校)', expand=False)
 df['小学校'] = s1.fillna(s2).fillna(s3).fillna(s4)
 
-s1 = df_raw['最寄りの学校'].str.extract(r'([^/\s【】・、(]+?中学校)', expand=False) 
+s1 = df_raw['最寄りの学校'].str.extract(r'([^/\s【】・、(]+?中学校)', expand=False)
 s2 = df_raw['物件の魅力'].str.extract(r'([^/\s【】・、(]+?中学校)', expand=False)
 s3 = df_raw['備考'].str.extract(r'([^/\s【】・、(]+?中学校)', expand=False)
-s4 = df_raw['img_desc'].str.extract(r'([^/\s【】・、(]+?中学校)', expand=False) 
+s4 = df_raw['img_desc'].str.extract(r'([^/\s【】・、(]+?中学校)', expand=False)
 df['中学校'] = s1.fillna(s2).fillna(s3).fillna(s4)
 
 df['周辺環境'] = df_raw['備考'].map(lambda x: '\n'.join(l for l in x.splitlines() if re.search(r'(?:\d分|\dm)$', l)))
@@ -272,6 +281,7 @@ df['引渡日（入居予定日）'] = df_raw['引渡日（入居予定日）']
 df['物件番号'] = df_raw['物件番号']
 df['情報更新日'] = df_raw['情報更新日']
 ```
+
 ```python
 df.to_clipboard(index=False)
 ```
