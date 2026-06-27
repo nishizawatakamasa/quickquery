@@ -47,14 +47,14 @@ with open_patchright(
             urls.extend(bukken_elems.urls)
         else:
             logger.warning(f'page limit reached: {prefecture_url!r}')
-write_csv(here('csv/urls.csv'), [{'url': url} for url in urls])
+write_csv(here('csv/urls.csv'), [{'url': url} for url in set(urls)])
 ```
 
 ### scrape.py
 
 ```python
-from datetime import datetime, timezone
 import time
+from datetime import datetime, timezone
 
 import pandas as pd
 
@@ -126,6 +126,36 @@ with open_patchright(
             write_bytes(here(f'media/{url_index}-img-main.jpg'), body)
 ```
 
+### discover.py
+
+```python
+from pathlib import Path
+
+import pyperclip
+
+from quickquery import quick_parser
+from quickquery.utils import from_here, glob_paths, parse_html, process_map
+
+
+def main() -> None:
+    here = from_here(__file__)
+    html_paths = glob_paths(here('html'), '*.html')
+    results = [r for r in process_map(labels_in_file, html_paths) if r]
+    labels = [label for part in results for label in part]
+    pyperclip.copy('\n'.join(set(labels)))
+
+
+def labels_in_file(file_path: str) -> list[str] | None:
+    if not (parser := parse_html(Path(file_path).read_bytes())):
+        return None
+    p = quick_parser(parser)
+    return [t.strip() for t in p.ii('dt').texts if t and t.strip()]
+
+
+if __name__ == '__main__':
+    main()
+```
+
 ### extract.py
 
 ```python
@@ -134,18 +164,21 @@ from pathlib import Path
 from quickquery import quick_parser
 from quickquery.utils import from_here, glob_paths, parse_html, process_map, write_parquet
 
-def main():
+def main() -> None:
     here = from_here(__file__)
     html_paths = glob_paths(here('html'), '*.html')
     results = [r for r in process_map(extract, html_paths) if r]
     write_parquet(here('parquet/extract.parquet'), results)
 
-def extract(file_path: str) -> dict | None:
+def extract(file_path: str) -> dict[str, str] | None:
     if not (parser := parse_html(Path(file_path).read_bytes())):
         return None
     p = quick_parser(parser)
     dt_scan = p.ii('dt').scan
-    dd_text = lambda pattern: dt_scan.m(pattern).n('dd').text
+
+    def dd_text(pattern: str) -> str | None:
+        return dt_scan.m(pattern).n('dd').text
+
     return {
         'url_index': p.meta('quickquery:url_index'),
         'saved_at': p.meta('quickquery:saved_at'),
