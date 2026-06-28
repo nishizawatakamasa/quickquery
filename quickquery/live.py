@@ -189,6 +189,17 @@ def open_patchright(
     recycle: RecycleEvery | None = None,
     setup_context: Callable[[Context], None] | None = None,
 ) -> PatchrightSession:
+    """Patchright ブラウザセッションを開く。
+
+    例::
+
+        with open_patchright(
+            browser_options={'channel': 'chrome', 'headless': False},
+            context_options={'viewport': {'width': 1920, 'height': 1080}},
+            recycle=RecycleEvery(browser=300, context=100, page=20),
+        ) as s:
+            page = s.page()
+    """
     return PatchrightSession(
         browser_options=browser_options,
         context_options=context_options,
@@ -204,6 +215,17 @@ def open_camoufox(
     recycle: RecycleEvery | None = None,
     setup_context: Callable[[Context], None] | None = None,
 ) -> CamoufoxSession:
+    """Camoufox ブラウザセッションを開く。
+
+    例::
+
+        with open_camoufox(
+            browser_options={'headless': False, 'humanize': True},
+            context_options={'viewport': {'width': 1920, 'height': 1080}},
+            recycle=RecycleEvery(browser=300, context=100, page=20),
+        ) as s:
+            page = s.page()
+    """
     return CamoufoxSession(
         browser_options=browser_options,
         context_options=context_options,

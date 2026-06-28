@@ -40,7 +40,7 @@ with open_patchright(
         for page_num in range(1, 501):
             page = s.page()
             p = quick_page(page)
-            if not p.goto(f'{prefecture_url}?{urlencode({"page": page_num})}', sleep_after=(0.5, 1)):
+            if not p.goto(f'{prefecture_url}?{urlencode({"page": page_num})}'):
                 break
             if not (bukken_elems := p.ii('ul li div a[href^="https://home.katitas.jp"]:has(p)')):
                 break
